@@ -1,0 +1,12 @@
+streamlit
+python-dotenv
+langchain
+langchain-community
+langchain-core
+langchain-groq
+langchain-google-genai
+faiss-cpu
+PyMuPDF
+pypdf
+SpeechRecognition
+PyAudio
