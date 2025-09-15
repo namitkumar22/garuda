@@ -11,731 +11,352 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv
 import time
-from datetime import datetime
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="GARUDA - Military Protocol Assistant",
     page_icon="🎖️",
     layout="wide",
-    initial_sidebar_state="collapsed",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': "GARUDA Military Protocol Assistant v2.0"
-    }
+    initial_sidebar_state="expanded"
 )
 
-# Professional Military UI Styling
+# Professional CSS
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    /* CSS Variables for consistent theming */
-    :root {
-        --primary-color: #1a365d;
-        --secondary-color: #2d3748;
-        --accent-color: #3182ce;
-        --success-color: #38a169;
-        --warning-color: #d69e2e;
-        --danger-color: #e53e3e;
-        --text-primary: #ffffff;
-        --text-secondary: #a0aec0;
-        --bg-primary: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #4a5568 100%);
-        --bg-secondary: rgba(45, 55, 72, 0.8);
-        --bg-card: rgba(255, 255, 255, 0.05);
-        --border-color: rgba(255, 255, 255, 0.1);
-        --shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        --shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.4);
-    }
-
-    /* Global Styles */
-    .stApp {
-        background: var(--bg-primary);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--text-primary);
-    }
-
-    /* Hide Streamlit Branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Container Layouts */
-    .main-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 1rem;
-    }
-
-    /* Professional Header */
-    .app-header {
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-        text-align: center;
-        box-shadow: var(--shadow);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .app-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--accent-color), var(--success-color), var(--accent-color));
-    }
-
-    .app-header h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin: 0;
-        background: linear-gradient(135deg, #ffffff, #a0aec0);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .app-header h3 {
-        font-size: 1.1rem;
-        font-weight: 400;
-        margin: 0.5rem 0 0 0;
-        color: var(--text-secondary);
-    }
-
-    /* Status Bar */
-    .status-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: var(--bg-card);
-        backdrop-filter: blur(10px);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow);
-    }
-
-    .status-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-
-    .status-online { color: var(--success-color); }
-    .status-warning { color: var(--warning-color); }
-
-    /* Card Components */
-    .card {
-        background: var(--bg-card);
-        backdrop-filter: blur(15px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
+    .main-header {
+        background: linear-gradient(135deg, #1e3a8a, #3b82f6);
         padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow);
-        transition: all 0.3s ease;
-        height: fit-content;
-    }
-
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    .card-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin: 0 0 1rem 0;
-        color: var(--text-primary);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0.5rem;
-    }
-
-    /* Protocol Buttons */
-    .protocol-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .protocol-btn {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 10px !important;
-        color: var(--text-primary) !important;
-        padding: 0.75rem 1rem !important;
-        text-align: left !important;
-        font-weight: 500 !important;
-        transition: all 0.3s ease !important;
-        width: 100% !important;
-        margin: 0 !important;
-    }
-
-    .protocol-btn:hover {
-        background: rgba(49, 130, 206, 0.1) !important;
-        border-color: var(--accent-color) !important;
-        transform: translateX(4px) !important;
-        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.2) !important;
-    }
-
-    /* Chat Interface */
-    .chat-container {
-        background: var(--bg-card);
-        backdrop-filter: blur(15px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow);
-        min-height: 400px;
-        max-height: 600px;
-        overflow-y: auto;
-    }
-
-    /* Custom Scrollbar */
-    .chat-container::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .chat-container::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .chat-container::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 3px;
-    }
-
-    .chat-container::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.3);
-    }
-
-    /* Message Bubbles */
-    .message-user {
-        background: linear-gradient(135deg, var(--accent-color), #2b6cb0);
+        border-radius: 10px;
         color: white;
-        padding: 1rem 1.25rem;
-        border-radius: 18px 18px 4px 18px;
-        margin: 0.75rem 0 0.25rem auto;
-        max-width: 80%;
-        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .status-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .protocol-btn {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 0.7rem;
+        margin: 0.3rem 0;
+        width: 100%;
+        text-align: left;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .protocol-btn:hover {
+        background: #f1f5f9;
+        border-color: #3b82f6;
+        transform: translateX(3px);
+    }
+    
+    .stButton > button {
+        border-radius: 6px;
         font-weight: 500;
     }
-
-    .message-bot {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid var(--border-color);
-        color: var(--text-primary);
-        padding: 1rem 1.25rem;
-        border-radius: 18px 18px 18px 4px;
-        margin: 0.25rem 0 0.75rem 0;
-        max-width: 85%;
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(10px);
-    }
-
-    .message-meta {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        text-align: right;
-        margin-top: 0.5rem;
-        opacity: 0.8;
-    }
-
-    /* Input Components */
-    .stTextInput > div > div > input {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 25px !important;
-        color: var(--text-primary) !important;
-        padding: 0.75rem 1.5rem !important;
-        font-size: 1rem !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .stTextInput > div > div > input:focus {
-        border-color: var(--accent-color) !important;
-        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1) !important;
-    }
-
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, var(--accent-color), #2b6cb0) !important;
-        border: none !important;
-        border-radius: 25px !important;
-        color: white !important;
-        padding: 0.75rem 1.5rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3) !important;
-    }
-
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 16px rgba(49, 130, 206, 0.4) !important;
-    }
-
-    /* Secondary Buttons */
-    .btn-secondary {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-color) !important;
-        color: var(--text-primary) !important;
-    }
-
-    .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border-color: var(--accent-color) !important;
-    }
-
-    /* References */
-    .reference-item {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        font-size: 0.85rem;
-        line-height: 1.4;
-    }
-
-    /* Expander Styling */
-    .streamlit-expanderHeader {
-        background: var(--bg-card);
-        border-radius: 8px;
-        padding: 0.5rem;
-    }
-
-    /* Loading Spinner */
-    .stSpinner > div {
-        border-color: var(--accent-color) transparent transparent transparent !important;
-    }
-
-    /* Alerts */
-    .stAlert {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(10px) !important;
-    }
-
-    .stSuccess {
-        border-left: 4px solid var(--success-color) !important;
-    }
-
-    .stError {
-        border-left: 4px solid var(--danger-color) !important;
-    }
-
-    .stInfo {
-        border-left: 4px solid var(--accent-color) !important;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .app-header h1 { font-size: 2rem; }
-        .message-user, .message-bot { max-width: 95%; }
-        .status-bar { flex-direction: column; gap: 0.5rem; }
-    }
-
-    /* Animation Classes */
-    .fade-in {
-        animation: fadeIn 0.5s ease-in;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Professional Typography */
-    h1, h2, h3, h4, h5, h6 {
-        font-family: 'Inter', sans-serif;
-        color: var(--text-primary);
-    }
-
-    p, div, span {
-        font-family: 'Inter', sans-serif;
+    
+    .chat-input {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 1rem;
+        border-top: 1px solid #e2e8f0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-def check_environment():
-    """Check if all required environment variables and directories exist"""
-    required_vars = ['GROQ_API_KEY']
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
-    if missing_vars:
-        st.error(f"❌ Missing environment variables: {', '.join(missing_vars)}")
-        st.info("💡 Create a .env file with: GROQ_API_KEY=your_api_key_here")
-        return False
-    
-    if not os.path.exists("./Data"):
-        st.warning("⚠️ ./Data directory not found. Creating it now...")
-        os.makedirs("./Data", exist_ok=True)
-        st.info("📁 Please add your PDF documents to the ./Data directory and restart the application.")
-        return False
-    
-    pdf_files = [f for f in os.listdir("./Data") if f.endswith('.pdf')]
-    if not pdf_files:
-        st.warning("⚠️ No PDF files found in ./Data directory")
-        st.info("📄 Please add PDF documents to proceed.")
-        return False
-    
-    return True
-
 @st.cache_resource
 def initialize_llm():
-    """Initialize the language model"""
-    try:
-        return ChatGroq(
-            groq_api_key=os.getenv('GROQ_API_KEY'),
-            model_name="openai/gpt-oss-120b",
-            temperature=0.1
-        )
-    except Exception as e:
-        st.error(f"❌ Failed to initialize LLM: {str(e)}")
-        return None
+    """Initialize language model"""
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        st.error("❌ GROQ_API_KEY not found in environment variables")
+        st.stop()
+    
+    return ChatGroq(
+        groq_api_key=api_key,
+        model_name="llama-3.1-70b-versatile",
+        temperature=0.1
+    )
 
 @st.cache_resource
 def initialize_embeddings():
-    """Initialize HuggingFace embeddings"""
-    try:
-        return HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
-    except Exception as e:
-        st.error(f"❌ Failed to initialize embeddings: {str(e)}")
-        return None
+    """Initialize embeddings model"""
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
+    )
 
 @st.cache_resource
-def load_documents():
-    """Load or create vector embeddings from documents"""
-    embeddings_path = "./embeddings_cache"
+def load_vectorstore():
+    """Load or create vector store with persistent caching"""
+    # Check data directory
+    if not os.path.exists("./Data"):
+        os.makedirs("./Data", exist_ok=True)
+        st.error("❌ ./Data directory was created. Please add PDF files and restart.")
+        st.stop()
     
-    try:
-        embeddings = initialize_embeddings()
-        if not embeddings:
-            return None
-        
-        # Check if embeddings cache exists
-        if os.path.exists(embeddings_path):
+    pdf_files = [f for f in os.listdir("./Data") if f.endswith('.pdf')]
+    if not pdf_files:
+        st.error("❌ No PDF files found in ./Data directory")
+        st.info("📄 Please add PDF documents to the ./Data folder")
+        st.stop()
+    
+    embeddings = initialize_embeddings()
+    cache_path = "./embeddings_cache"
+    
+    # Try to load existing embeddings
+    if os.path.exists(cache_path):
+        try:
             with st.spinner("📂 Loading cached embeddings..."):
-                return FAISS.load_local(embeddings_path, embeddings, allow_dangerous_deserialization=True)
-        
-        # Create new embeddings
-        with st.spinner("🔧 Creating embeddings... This may take a few minutes."):
+                vectorstore = FAISS.load_local(
+                    cache_path, 
+                    embeddings, 
+                    allow_dangerous_deserialization=True
+                )
+                st.success(f"✅ Loaded cached embeddings for {len(pdf_files)} documents")
+                return vectorstore
+        except Exception as e:
+            st.warning(f"⚠️ Cache corrupted: {str(e)}. Rebuilding...")
+            shutil.rmtree(cache_path)
+    
+    # Create new embeddings
+    with st.spinner("🔧 Processing documents and creating embeddings... This may take a few minutes."):
+        try:
+            # Load documents
             loader = PyPDFDirectoryLoader("./Data")
             docs = loader.load()
             
             if not docs:
-                st.error("❌ No documents loaded from ./Data directory")
-                return None
+                st.error("❌ No documents could be loaded from PDF files")
+                st.stop()
             
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000, 
+            # Split documents
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
                 chunk_overlap=200,
                 separators=["\n\n", "\n", " ", ""]
             )
-            final_documents = text_splitter.split_documents(docs)
+            split_docs = splitter.split_documents(docs)
             
-            # Create and cache vector store
-            vector_store = FAISS.from_documents(final_documents, embeddings)
-            vector_store.save_local(embeddings_path)
-            st.success("✅ Embeddings created and cached successfully!")
+            st.info(f"📝 Processing {len(split_docs)} document chunks...")
             
-            return vector_store
+            # Create vector store
+            vectorstore = FAISS.from_documents(split_docs, embeddings)
             
-    except Exception as e:
-        logger.error(f"Error in load_documents: {str(e)}")
-        st.error(f"❌ Document processing error: {str(e)}")
-        return None
+            # Save to cache
+            vectorstore.save_local(cache_path)
+            st.success(f"✅ Created and cached embeddings for {len(pdf_files)} PDF files")
+            
+            return vectorstore
+            
+        except Exception as e:
+            st.error(f"❌ Error creating embeddings: {str(e)}")
+            st.stop()
 
-def get_prompt_template():
-    """Get the system prompt template"""
+def get_system_prompt():
+    """System prompt template"""
     return ChatPromptTemplate.from_template("""
-    You are **GARUDA**, a Military Emergency Protocol Assistant providing **strictly accurate** guidance from official military protocol documents.
+You are GARUDA, a Military Protocol Assistant. Provide accurate, actionable guidance based on official military protocols.
 
-    **RESPONSE GUIDELINES:**
-    1. Use ONLY official protocol documents for responses
-    2. Provide complete, actionable steps with precise details
-    3. For irrelevant queries, respond: "Information not available in the database"
-    4. For relevant but missing protocols, provide standard emergency guidance
-    5. Maintain professional military communication standards
+**Guidelines:**
+- Use only information from the provided documents
+- Give clear, step-by-step instructions
+- Include safety warnings when relevant
+- Maintain professional military communication
+- If information is not available, state clearly
 
-    **Response Format:**
-    - **Immediate Actions:** Critical steps requiring immediate execution
-    - **Standard Procedure:** Detailed step-by-step instructions
-    - **Protocol Reference:** Source section or document reference
-    - **Additional Notes:** Warnings, considerations, or follow-up actions
+**Context:** {context}
+**Question:** {input}
 
-    **Official Protocol Context:** {context}
-    **Query:** {input}
-    """)
+Provide a structured response with:
+1. Immediate Actions (if emergency)
+2. Detailed Procedure
+3. Safety Considerations
+4. Reference Information
+""")
 
-def display_protocol_buttons():
-    """Display quick access protocol buttons"""
+def process_query(query, vectorstore, llm):
+    """Process user query"""
+    try:
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+        document_chain = create_stuff_documents_chain(llm, get_system_prompt())
+        rag_chain = create_retrieval_chain(retriever, document_chain)
+        
+        response = rag_chain.invoke({"input": query})
+        return response["answer"]
+    
+    except Exception as e:
+        return f"❌ Error processing query: {str(e)}"
+
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+if "llm" not in st.session_state:
+    st.session_state.llm = None
+
+# Header
+st.markdown("""
+<div class="main-header">
+    <h1>🎖️ GARUDA</h1>
+    <h3>Military Protocol Assistant</h3>
+    <p>Emergency Response • Protocol Guidance • Mission Support</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Sidebar
+with st.sidebar:
+    st.header("🚀 Quick Protocols")
+    
     protocols = {
-        "📡 Communications Emergency": "Communications equipment failure emergency procedures",
-        "🔥 Fire Response": "Fire outbreak immediate response protocol",
-        "💥 Explosive Threat": "Explosive device or bomb threat procedures",
-        "🌡️ Medical Emergency": "Heat exhaustion and medical emergency response",
-        "⚠️ CBRN Threat": "Chemical, biological, radiological, nuclear threat response",
-        "❄️ Cold Weather Injuries": "Hypothermia and cold weather injury protocol",
-        "📍 Survival Operations": "Survival procedures when lost or isolated",
-        "🚁 Evacuation Procedures": "Emergency evacuation and extraction protocols"
+        "📡 Communication Failure": "Communication equipment failure emergency procedures",
+        "🔥 Fire Emergency": "Fire outbreak immediate response protocol",
+        "💥 Explosive Threat": "Explosive device or bomb threat procedures", 
+        "🚑 Medical Emergency": "Medical emergency and casualty response",
+        "⚠️ CBRN Alert": "Chemical, biological, radiological threat response",
+        "❄️ Cold Injury": "Hypothermia and cold weather injury protocol",
+        "🧭 Survival": "Survival procedures when lost or isolated",
+        "🚁 Evacuation": "Emergency evacuation and extraction protocols"
     }
     
-    st.markdown('<div class="protocol-grid">', unsafe_allow_html=True)
-    for emoji_label, query in protocols.items():
-        if st.button(emoji_label, key=f"protocol_{emoji_label}", 
-                    help=query, use_container_width=True):
-            return query
-    st.markdown('</div>', unsafe_allow_html=True)
-    return None
-
-def process_query(query, vectors, llm):
-    """Process user query and return response"""
-    try:
-        document_chain = create_stuff_documents_chain(llm, get_prompt_template())
-        retrieval_chain = create_retrieval_chain(vectors.as_retriever(search_kwargs={"k": 3}), document_chain)
-        
-        start_time = time.time()
-        response = retrieval_chain.invoke({'input': query})
-        processing_time = time.time() - start_time
-        
-        return {
-            'answer': response['answer'],
-            'time': processing_time,
-            'context': response.get('context', [])
-        }
-    except Exception as e:
-        logger.error(f"Error processing query: {str(e)}")
-        return {
-            'answer': f"❌ Error processing query: {str(e)}", 
-            'time': 0, 
-            'context': []
-        }
-
-def display_status_bar():
-    """Display system status bar"""
+    for label, query in protocols.items():
+        if st.button(label, key=f"btn_{label}", help=query):
+            st.session_state.messages.append({"role": "user", "content": query})
+            st.rerun()
+    
+    st.divider()
+    
+    # System status
+    st.header("📊 System Status")
+    
     cache_exists = os.path.exists("./embeddings_cache")
-    pdf_count = len([f for f in os.listdir("./Data") if f.endswith('.pdf')]) if os.path.exists("./Data") else 0
+    cache_size = "Unknown"
+    
+    if cache_exists:
+        try:
+            cache_files = os.listdir("./embeddings_cache")
+            cache_size = f"{len(cache_files)} files"
+        except:
+            cache_size = "Error reading"
+    
+    pdf_count = 0
+    if os.path.exists("./Data"):
+        pdf_count = len([f for f in os.listdir("./Data") if f.endswith('.pdf')])
     
     st.markdown(f"""
-    <div class="status-bar">
-        <div class="status-item">
-            <span class="status-online">●</span>
-            <span>System Online</span>
-        </div>
-        <div class="status-item">
-            <span>📅</span>
-            <span>{datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
-        </div>
-        <div class="status-item">
-            <span class="{'status-online' if cache_exists else 'status-warning'}">●</span>
-            <span>Database {'Active' if cache_exists else 'Building'}</span>
-        </div>
-        <div class="status-item">
-            <span>📄</span>
-            <span>{pdf_count} Documents</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def main():
-    """Main application function"""
-    # Environment check
-    if not check_environment():
-        return
-    
-    # Header
-    st.markdown("""
-    <div class="app-header fade-in">
-        <h1>🎖️ GARUDA</h1>
-        <h3>Advanced Military Protocol Assistant</h3>
-        <p style="color: var(--text-secondary); margin-top: 0.5rem;">
-            Critical Emergency Response • Real-time Protocol Access • Mission Support
-        </p>
+    <div class="status-panel">
+        <p>🟢 <strong>System:</strong> Online</p>
+        <p>📄 <strong>Documents:</strong> {pdf_count} PDFs</p>
+        <p>💾 <strong>Embeddings:</strong> {'✅ Cached' if cache_exists else '❌ Not Built'}</p>
+        <p>📊 <strong>Cache Size:</strong> {cache_size}</p>
+        <p>💬 <strong>Messages:</strong> {len(st.session_state.messages)}</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Status Bar
-    display_status_bar()
+    # Management buttons
+    st.header("⚙️ Management")
     
-    # Initialize components
-    vectors = load_documents()
-    if not vectors:
-        st.error("❌ Failed to initialize protocol database. Please check your setup.")
-        return
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
     
-    llm = initialize_llm()
-    if not llm:
-        return
-    
-    # Initialize session state
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'current_query' not in st.session_state:
-        st.session_state.current_query = ''
-    
-    # Main layout
-    col1, col2, col3 = st.columns([1, 2, 1], gap="large")
-    
-    # Left Column - Quick Protocols
-    with col1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<h3 class="card-title">🚀 Quick Access Protocols</h3>', unsafe_allow_html=True)
-        selected_protocol = display_protocol_buttons()
-        if selected_protocol:
-            st.session_state.current_query = selected_protocol
+    if st.button("🔄 Rebuild Cache", use_container_width=True):
+        if os.path.exists("./embeddings_cache"):
+            shutil.rmtree("./embeddings_cache")
+            st.session_state.vectorstore = None
+            # Clear the cache so it rebuilds on next load
+            st.cache_resource.clear()
+            st.success("🔄 Cache cleared! Reloading page...")
+            time.sleep(2)
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Middle Column - Chat Interface
-    with col2:
-        # Input area
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        input_col1, input_col2 = st.columns([4, 1])
-        
-        with input_col1:
-            query = st.text_input(
-                "",
-                placeholder="🎯 Enter your emergency protocol query...",
-                label_visibility="collapsed",
-                value=st.session_state.current_query,
-                key="main_input"
-            )
-        
-        with input_col2:
-            send_clicked = st.button("🚀 Send", use_container_width=True, type="primary")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Process query
-        if send_clicked and query:
-            with st.spinner("🔍 Analyzing protocols..."):
-                response = process_query(query, vectors, llm)
-                
-                # Add to chat history
-                st.session_state.chat_history.append({
-                    'question': query,
-                    'answer': response['answer'],
-                    'time': response['time'],
-                    'context': response['context'],
-                    'timestamp': datetime.now()
-                })
-                
-                # Clear input
-                st.session_state.current_query = ''
-                st.rerun()
-        
-        # Chat History
-        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-        
-        if not st.session_state.chat_history:
-            st.markdown("""
-            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                <h3>🎖️ GARUDA Protocol Assistant Ready</h3>
-                <p>Select a quick protocol or type your emergency query above</p>
-                <p><em>Providing critical military protocol guidance when you need it most</em></p>
-            </div>
-            """, unsafe_allow_html=True)
         else:
-            # Display recent chats (last 5)
-            for chat in reversed(st.session_state.chat_history[-5:]):
-                st.markdown(f"""
-                <div class="message-user fade-in">
-                    <strong>🎯 Query:</strong> {chat['question']}
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
-                <div class="message-bot fade-in">
-                    <strong>📋 Protocol Response:</strong><br>
-                    {chat['answer'].replace(chr(10), '<br>')}
-                    <div class="message-meta">
-                        ⏱️ {chat['time']:.2f}s • {chat['timestamp'].strftime('%H:%M:%S')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.info("No cache found to clear")
     
-    # Right Column - References & Management
-    with col3:
-        # References
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<h3 class="card-title">📚 Protocol References</h3>', unsafe_allow_html=True)
-        
-        if st.session_state.chat_history:
-            latest = st.session_state.chat_history[-1]
-            if latest.get('context'):
-                for idx, doc in enumerate(latest['context'][:3], 1):
-                    with st.expander(f"📄 Reference Document {idx}", expanded=False):
-                        content = doc.page_content
-                        preview = content[:250] + "..." if len(content) > 250 else content
-                        st.markdown(f'<div class="reference-item">{preview}</div>', unsafe_allow_html=True)
-            else:
-                st.info("No references available for the last query.")
-        else:
-            st.info("Protocol references will appear here after your first query.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # System Management
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<h3 class="card-title">⚙️ System Management</h3>', unsafe_allow_html=True)
-        
-        # Management buttons
-        col_clear, col_cache = st.columns(2)
-        
-        with col_clear:
-            if st.button("🗑️ Clear Chat", use_container_width=True, help="Clear chat history"):
-                st.session_state.chat_history = []
-                st.success("Chat history cleared!")
-                time.sleep(1)
-                st.rerun()
-        
-        with col_cache:
-            if st.button("🔄 Reset Cache", use_container_width=True, 
-                        help="Clear embeddings cache to rebuild"):
-                cache_path = "./embeddings_cache"
-                if os.path.exists(cache_path):
-                    shutil.rmtree(cache_path)
-                    st.success("Cache cleared! Please restart to rebuild.")
-                else:
-                    st.info("No cache found.")
-        
-        # System info
-        cache_exists = os.path.exists("./embeddings_cache")
-        st.markdown(f"""
-        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--border-color);">
-            <div><strong>Cache Status:</strong> {'🟢 Active' if cache_exists else '🟡 Building'}</div>
-            <div><strong>Sessions:</strong> {len(st.session_state.chat_history)} queries</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Display cache info
+    if os.path.exists("./embeddings_cache"):
+        try:
+            cache_files = os.listdir("./embeddings_cache")
+            st.caption(f"📂 Cache contains {len(cache_files)} files")
+        except:
+            st.caption("📂 Cache status unknown")
 
-if __name__ == "__main__":
-    main()
+# Main chat area
+st.header("💬 Protocol Chat")
+
+# Initialize components with proper caching
+try:
+    if st.session_state.vectorstore is None:
+        st.session_state.vectorstore = load_vectorstore()
+    
+    if st.session_state.llm is None:
+        st.session_state.llm = initialize_llm()
+        
+except Exception as e:
+    st.error(f"❌ Initialization failed: {str(e)}")
+    st.info("💡 Try clearing the cache and restarting the application")
+    st.stop()
+
+# Display chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+# Chat input
+if prompt := st.chat_input("Enter your protocol query..."):
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+    
+    # Generate response
+    with st.chat_message("assistant"):
+        with st.spinner("🔍 Analyzing protocols..."):
+            response = process_query(
+                prompt, 
+                st.session_state.vectorstore, 
+                st.session_state.llm
+            )
+            st.write(response)
+    
+    # Add assistant message
+    st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Welcome message
+if not st.session_state.messages:
+    with st.chat_message("assistant"):
+        st.write("""
+        👋 Welcome to **GARUDA Military Protocol Assistant**!
+        
+        I'm here to provide you with accurate military protocol guidance from official documents.
+        
+        **How to use:**
+        - Use the Quick Protocols in the sidebar for common emergencies
+        - Type your specific protocol questions in the chat
+        - I'll provide structured, actionable responses
+        
+        **Ready to assist with your protocol queries!** 🎖️
+        """)
+
+# Footer
+st.divider()
+st.markdown("""
+<div style="text-align: center; color: #64748b; padding: 1rem;">
+    <p><strong>GARUDA v2.0</strong> | Military Protocol Assistant | 
+    For training and reference purposes</p>
+</div>
+""", unsafe_allow_html=True)
