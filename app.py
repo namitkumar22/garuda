@@ -87,7 +87,7 @@ def initialize_llm():
     
     return ChatGroq(
         groq_api_key=api_key,
-        model_name="llama-3.1-70b-versatile",
+        model_name="openai/gpt-oss-120b",
         temperature=0.1
     )
 
