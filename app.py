@@ -170,23 +170,38 @@ def load_vectorstore():
 def get_system_prompt():
     """System prompt template"""
     return ChatPromptTemplate.from_template("""
-You are GARUDA, a Military Protocol Assistant. Provide accurate, actionable guidance based on official military protocols.
+You are GARUDA, a Military Protocol Assistant.
 
-**Guidelines:**
-- Use only information from the provided documents
-- Give clear, step-by-step instructions
-- Include safety warnings when relevant
-- Maintain professional military communication
-- If information is not available, state clearly
+Strict Operating Rules:
 
-**Context:** {context}
-**Question:** {input}
+Respond only with information from official military protocols provided in context.
 
-Provide a structured response with:
-1. Immediate Actions (if emergency)
-2. Detailed Procedure
-3. Safety Considerations
-4. Reference Information
+Always reply in short, precise bullet points (no long paragraphs).
+
+If input is an emergency situation → provide full structured protocol:
+
+Immediate Actions
+
+Detailed Procedure
+
+Safety Considerations
+
+Reference Information
+
+If input is not related to emergency/protocol → firmly instruct: "Please ask about an emergency situation or military protocol."
+
+If input is just normal greetings → reply with short, professional military greeting (e.g., "GARUDA online. Awaiting your command.").
+
+Never invent or assume missing information. If unavailable → state clearly: "No information available in provided documents."
+
+Context: {context}
+Question: {input}
+
+Output Requirement:
+
+Always short, direct, military-style bullet points.
+
+Must cover all necessary aspects without unnecessary detail.
 """)
 
 def process_query(query, vectorstore, llm):
@@ -209,6 +224,8 @@ if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 if "llm" not in st.session_state:
     st.session_state.llm = None
+if "process_quick_protocol" not in st.session_state:
+    st.session_state.process_quick_protocol = False
 
 # Header
 st.markdown("""
@@ -218,6 +235,19 @@ st.markdown("""
     <p>Emergency Response • Protocol Guidance • Mission Support</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Initialize components with proper caching
+try:
+    if st.session_state.vectorstore is None:
+        st.session_state.vectorstore = load_vectorstore()
+    
+    if st.session_state.llm is None:
+        st.session_state.llm = initialize_llm()
+        
+except Exception as e:
+    st.error(f"❌ Initialization failed: {str(e)}")
+    st.info("💡 Try clearing the cache and restarting the application")
+    st.stop()
 
 # Sidebar
 with st.sidebar:
@@ -236,37 +266,22 @@ with st.sidebar:
     
     for label, query in protocols.items():
         if st.button(label, key=f"btn_{label}", help=query):
+            # Add user message
             st.session_state.messages.append({"role": "user", "content": query})
+            
+            # Generate response immediately
+            with st.spinner("🔍 Analyzing protocols..."):
+                response = process_query(
+                    query, 
+                    st.session_state.vectorstore, 
+                    st.session_state.llm
+                )
+                # Add assistant message
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            
             st.rerun()
     
     st.divider()
-    
-    # System status
-    st.header("📊 System Status")
-    
-    cache_exists = os.path.exists("./embeddings_cache")
-    cache_size = "Unknown"
-    
-    if cache_exists:
-        try:
-            cache_files = os.listdir("./embeddings_cache")
-            cache_size = f"{len(cache_files)} files"
-        except:
-            cache_size = "Error reading"
-    
-    pdf_count = 0
-    if os.path.exists("./Data"):
-        pdf_count = len([f for f in os.listdir("./Data") if f.endswith('.pdf')])
-    
-    st.markdown(f"""
-    <div class="status-panel">
-        <p>🟢 <strong>System:</strong> Online</p>
-        <p>📄 <strong>Documents:</strong> {pdf_count} PDFs</p>
-        <p>💾 <strong>Embeddings:</strong> {'✅ Cached' if cache_exists else '❌ Not Built'}</p>
-        <p>📊 <strong>Cache Size:</strong> {cache_size}</p>
-        <p>💬 <strong>Messages:</strong> {len(st.session_state.messages)}</p>
-    </div>
-    """, unsafe_allow_html=True)
     
     # Management buttons
     st.header("⚙️ Management")
@@ -297,19 +312,6 @@ with st.sidebar:
 
 # Main chat area
 st.header("💬 Protocol Chat")
-
-# Initialize components with proper caching
-try:
-    if st.session_state.vectorstore is None:
-        st.session_state.vectorstore = load_vectorstore()
-    
-    if st.session_state.llm is None:
-        st.session_state.llm = initialize_llm()
-        
-except Exception as e:
-    st.error(f"❌ Initialization failed: {str(e)}")
-    st.info("💡 Try clearing the cache and restarting the application")
-    st.stop()
 
 # Display chat messages
 for message in st.session_state.messages:
