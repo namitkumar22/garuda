@@ -1,12 +1,10 @@
 streamlit
 python-dotenv
 langchain
-langchain-community
 langchain-core
+langchain-community
 langchain-groq
-langchain-google-genai
+langchain-huggingface
 faiss-cpu
-PyMuPDF
+sentence-transformers
 pypdf
-SpeechRecognition
-PyAudio

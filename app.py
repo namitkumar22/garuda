@@ -7,410 +7,311 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from dotenv import load_dotenv
 import time
 from datetime import datetime
-import speech_recognition as sr
 
 # Load environment variables
 load_dotenv()
 groq_api_key = os.getenv('GROQ_API_KEY')
-os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
-def initialize_page():
-    st.set_page_config(
-        page_title="Military Protocol Assistant",
-        page_icon="🎖️",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
+# Page configuration
+st.set_page_config(
+    page_title="Garuda - Military Protocol Assistant",
+    page_icon="🎖️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Modern UI styling
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Inter', sans-serif;
+    }
     
-    st.markdown("""
-        <style>
-        /* Core theme */
-        :root {
-            --bg-primary: #0d1117;
-            --bg-secondary: #161b22;
-            --bg-tertiary: #21262d;
-            --accent: #238636;
-            --text-primary: #c9d1d9;
-            --text-secondary: #8b949e;
-            --border: #30363d;
-        }
-
-        /* Global resets */
-        .stApp {
-            background-color: var(--bg-primary);
-        }
-
-        [data-testid="stSidebar"] {
-            display: none;
-        }
-
-        /* Column layout */
-        .main-container {
-            display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            height: calc(100vh - 2rem);
-        }
-
-        .column {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            padding: 1rem;
-            height: 100%;
-            overflow-y: auto;
-        }
-
-        .column-left {
-            flex: 1;
-        }
-
-        .column-middle {
-            flex: 2;
-        }
-
-        .column-right {
-            flex: 1;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-primary);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-tertiary);
-            border-radius: 3px;
-        }
-
-        /* Components */
-        .header {
-            background: linear-gradient(to bottom, var(--bg-tertiary), var(--bg-secondary));
-            padding: 1rem;
-            border-radius: 8px;
-            border-left: 3px solid var(--accent);
-            margin-bottom: 1rem;
-        }
-
-        .status-bar {
-            display: flex;
-            gap: 0.5rem;
-            background: var(--bg-tertiary);
-            padding: 0.5rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .status-indicator {
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        /* Chat components */
-        .message-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-
-        .message {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-        }
-
-        .message-query {
-            color: var(--accent);
-            margin-bottom: 0.5rem;
-        }
-
-        .message-response {
-            color: var(--text-primary);
-        }
-
-        .message-meta {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            text-align: right;
-            margin-top: 0.5rem;
-        }
-
-        /* Input area */
-        .input-container {
-            display: flex;
-            gap: 0.5rem;
-            margin: 1rem 0;
-        }
-
-        .stTextInput > div > div > input {
-            background: var(--bg-tertiary) !important;
-            border: 1px solid var(--border) !important;
-            color: var(--text-primary) !important;
-        }
-
-        .stButton > button {
-            background: var(--bg-tertiary) !important;
-            border: 1px solid var(--border) !important;
-            color: var(--text-primary) !important;
-        }
-
-        .stButton > button:hover {
-            border-color: var(--accent) !important;
-            transform: translateY(-1px);
-        }
-
-        /* Quick access */
-        .quick-access {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .quick-access button {
-            text-align: left !important;
-            padding: 0.75rem !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    .main-header {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        text-align: center;
+    }
+    
+    .chat-container {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .message-user {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 1rem;
+        border-radius: 15px 15px 5px 15px;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .message-bot {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 1rem;
+        border-radius: 15px 15px 15px 5px;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .status-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .protocol-btn {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 10px !important;
+        color: white !important;
+        margin: 0.2rem 0 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .protocol-btn:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .stTextInput > div > div > input {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-radius: 25px !important;
+        color: white !important;
+        padding: 0.75rem 1.5rem !important;
+    }
+    
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        border: none !important;
+        border-radius: 25px !important;
+        color: white !important;
+        padding: 0.75rem 1.5rem !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    h1, h2, h3 {
+        color: white !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .sidebar .sidebar-content {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+    }
+    
+    [data-testid="stSidebar"] {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 @st.cache_resource
 def initialize_llm():
-    return ChatGroq(
-        groq_api_key=groq_api_key,
-        model_name="llama-3.3-70b-specdec"
-    )
-
-def convert_speech_to_text():
-    recognizer = sr.Recognizer()
-    
-    try:
-        import pyaudio  # Ensure PyAudio is installed
-        with sr.Microphone() as source:
-            st.info("Adjusting for ambient noise. Please wait...")
-            recognizer.adjust_for_ambient_noise(source, duration=2)
-            st.info("Please speak something...")
-
-            try:
-                audio = recognizer.listen(source, timeout=5)
-                st.info("Processing speech...")
-
-                text = recognizer.recognize_google(audio)
-                if text:
-                    st.session_state.current_query = text
-                    st.session_state.should_send = True
-                return text
-
-            except sr.WaitTimeoutError:
-                return "No speech detected"
-            except sr.RequestError:
-                return "Could not connect to speech recognition service"
-            except sr.UnknownValueError:
-                return "Could not understand the audio"
-    
-    except OSError:
-        st.error("Microphone not available. Please check your device settings.")
-        return "Microphone not available"
-
-def initialize_prompt():
-    return ChatPromptTemplate.from_template("""
-    You are a **Military Emergency Protocol Assistant**, responsible for providing **strictly accurate** guidance based on **official military protocol documents**.  
-
-    **STRICT RESPONSE GUIDELINES:**  
-    1. **Use ONLY the official protocol documents** to generate responses. No external assumptions, opinions, or alternative advice are allowed.  
-    2. **Directly extract and present** the full, actionable steps from the provided protocols. **DO NOT** tell the user to check the procedures themselves—give them the exact details.  
-    3. **Reject unnecessary, vague, or unrelated queries** by responding with:  
-       ```
-       "Information Not available in the database"
-       ```
-    4. **If the query is relevant to emergency proceduresbu t NOT found in the protocol documents, respond with:**  
-       ```
-       "This information is not available in the official protocols. In such cases, follow standard emergency procedures:  
-       - Stay calm and assess the situation.  
-       - Ensure the safety of yourself and your unit.  
-       - Follow general emergency protocols as trained.  
-       - Seek immediate guidance from your commanding officer or emergency response teams."
-       ```
-    5. **Prioritize clarity, urgency, and step-by-step execution** for emergency situations. Responses must be **fully detailed**, with no missing steps.  
-    6. **Structure the response as follows (ONLY if the data is in the protocol):**  
-
-    **Response Format:**  
-    - **Immediate Actions (if applicable) → Critical steps that must be taken immediately.**  
-    - **Step-by-step procedure → Fully detailed steps extracted from the protocols.**  
-    - **Protocol Reference → Section, page, or source from which the information was retrieved.**  
-
-    **Official Protocol Data:**  
-    {context}  
-
-    **Query:** {input}  
-    """)
+    return ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-specdec")
 
 @st.cache_resource
-def process_documents_background():
+def initialize_embeddings():
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
+    )
+
+@st.cache_resource
+def load_documents():
     try:
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        embeddings = initialize_embeddings()
         loader = PyPDFDirectoryLoader("./Data")
         docs = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         final_documents = text_splitter.split_documents(docs)
         return FAISS.from_documents(final_documents, embeddings)
     except Exception as e:
-        st.error(f"Protocol database initialization error: {str(e)}")
+        st.error(f"❌ Protocol database initialization error: {str(e)}")
         return None
 
-def display_system_status():
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("**System Status:** <span class='status-online'>● ONLINE</span>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d')}")
-    with col3:
-        st.markdown("**Protocol Database:** <span class='status-online'>● ACTIVE</span>", unsafe_allow_html=True)
+def get_prompt_template():
+    return ChatPromptTemplate.from_template("""
+    You are a **Military Emergency Protocol Assistant** providing **strictly accurate** guidance from **official military protocol documents**.
+
+    **RESPONSE GUIDELINES:**
+    1. Use ONLY official protocol documents for responses
+    2. Provide complete, actionable steps - no vague references
+    3. For irrelevant queries, respond: "Information not available in the database"
+    4. For relevant but missing protocols, provide standard emergency guidance
+
+    **Format:**
+    - **Immediate Actions:** Critical steps (if applicable)
+    - **Procedure:** Detailed step-by-step instructions
+    - **Reference:** Protocol source
+
+    **Context:** {context}
+    **Query:** {input}
+    """)
+
+def display_protocol_buttons():
+    protocols = {
+        "📡 Communications Failure": "Communications equipment failure procedures",
+        "🔥 Fire Emergency": "Fire outbreak response in the field",
+        "💥 Explosive Threat": "Explosive or bomb threat immediate steps",
+        "🌡️ Heat Emergency": "Heat exhaustion signs and first aid",
+        "⚠️ Chemical Attack": "Biological or chemical attack response",
+        "❄️ Cold Injuries": "Hypothermia prevention and treatment",
+        "📍 Navigation Emergency": "Survival steps when lost"
+    }
+    
+    for emoji_label, query in protocols.items():
+        if st.button(emoji_label, key=f"protocol_{emoji_label}", help=query, use_container_width=True):
+            return query
+    return None
+
+def process_query(query, vectors, llm):
+    try:
+        document_chain = create_stuff_documents_chain(llm, get_prompt_template())
+        retrieval_chain = create_retrieval_chain(vectors.as_retriever(), document_chain)
+        
+        start_time = time.time()
+        response = retrieval_chain.invoke({'input': query})
+        processing_time = time.time() - start_time
+        
+        return {
+            'answer': response['answer'],
+            'time': processing_time,
+            'context': response.get('context', [])
+        }
+    except Exception as e:
+        return {'answer': f"Error processing query: {str(e)}", 'time': 0, 'context': []}
 
 def main():
-    initialize_page()
+    # Header
+    st.markdown("""
+    <div class="main-header">
+        <h1>🎖️ GARUDA</h1>
+        <h3>Military Emergency Response System</h3>
+        <p>Advanced Protocol Assistant for Critical Situations</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Initialize vectors outside the query processing
-    vectors = process_documents_background()
+    # Initialize components
+    vectors = load_documents()
     if not vectors:
         st.error("Failed to initialize protocol database")
         return
     
-    # Initialize LLM
     llm = initialize_llm()
     
-    # Three-column layout
-    left_col, middle_col, right_col = st.columns([1, 2, 1])
+    # Initialize session state
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
     
-    # Left Column - Quick Access
-    with left_col:
-        st.markdown("### Quick Access Protocols")
-        protocols = {
-            "📡 Communications": "What to do during communications equipment failure?",
-            "🔥 Fire Emergency": "How to respond to a fire outbreak in the field?",
-            "💥 Explosive Threat": "What are the immediate steps when encountering an explosive or bomb threat?",
-            "🌡️ Heat Exhaustion & Dehydration": "What are the signs and first aid measures for heat exhaustion?",
-            "⚠️ Biological or Chemical Attack": "How to respond in case of a suspected biological or chemical attack?",
-            "❄️ Hypothermia & Cold Injuries": "How to prevent and treat hypothermia in extreme cold conditions?",
-            "📍 Navigation": "What are the survival steps if lost in an unfamiliar environment?"
-        }
-        
-        for label, query in protocols.items():
-            if st.button(label, key=f"quick_{label}"):
-                st.session_state.current_query = f"{query}?"
-                st.session_state.should_send = True
+    # Layout
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    # Left Column - Quick Protocols
+    with col1:
+        st.markdown("### 🚀 Quick Protocols")
+        selected_protocol = display_protocol_buttons()
+        if selected_protocol:
+            st.session_state.current_query = selected_protocol
     
     # Middle Column - Chat Interface
-    with middle_col:
-        st.title("Garuda")
-        st.markdown("##### Military Emergency Response System")
-        
-        # Status Bar
+    with col2:
+        # Status indicators
         status_col1, status_col2, status_col3 = st.columns(3)
         with status_col1:
-            st.markdown("**System:** 🟢 Online")
+            st.markdown('<div class="status-card">🟢 System Online</div>', unsafe_allow_html=True)
         with status_col2:
-            st.markdown(f"**Updated:** {datetime.now().strftime('%Y-%m-%d')}")
+            st.markdown(f'<div class="status-card">📅 {datetime.now().strftime("%Y-%m-%d")}</div>', unsafe_allow_html=True)
         with status_col3:
-            st.markdown("**Database:** 🟢 Active")
+            st.markdown('<div class="status-card">🗄️ Database Active</div>', unsafe_allow_html=True)
         
-        # Input Area with Enter key handling
-        input_col1, input_col2, input_col3 = st.columns([3, 1, 1])
+        st.markdown("---")
+        
+        # Input area
+        input_col1, input_col2 = st.columns([4, 1])
         with input_col1:
-            question = st.text_input(
-                "Query",
-                value=st.session_state.get('current_query', ''),
-                placeholder="Enter your query...",
+            query = st.text_input(
+                "Enter your emergency protocol query...",
+                placeholder="What emergency procedure do you need?",
                 label_visibility="collapsed",
-                key="query_input",
-                on_change=lambda: setattr(st.session_state, 'should_send', True) if st.session_state.query_input else None
+                value=st.session_state.get('current_query', '')
             )
-            # Update current_query when input changes
-            if question:
-                st.session_state.current_query = question
-        
         with input_col2:
-            speak_btn = st.button("🎙️ Speak")
-        with input_col3:
-            send_btn = st.button("Send ➤")
-            if send_btn and st.session_state.current_query:
-                st.session_state.should_send = True
+            send_clicked = st.button("🚀 Send", use_container_width=True)
         
-        # Handle voice input and auto-send
-        if speak_btn:
-            query = convert_speech_to_text()
-            if query not in ["No speech detected", "Could not connect", "Could not understand"]:
-                st.session_state.current_query = query
-                st.session_state.should_send = True
-                st.rerun()
-        
-        # Process query when triggered by Enter, Send button, or voice
-        if st.session_state.get('should_send', False) and st.session_state.get('current_query'):
-            with st.spinner("Analysing Protocols..."):
-                try:
-                    document_chain = create_stuff_documents_chain(llm, initialize_prompt())
-                    retrieval_chain = create_retrieval_chain(vectors.as_retriever(), document_chain)
+        # Process query
+        if (send_clicked and query) or st.session_state.get('current_query'):
+            current_query = query or st.session_state.get('current_query', '')
+            if current_query:
+                with st.spinner("🔍 Analyzing protocols..."):
+                    response = process_query(current_query, vectors, llm)
                     
-                    start_time = time.time()
-                    response = retrieval_chain.invoke({'input': st.session_state.current_query})
-                    processing_time = time.time() - start_time
-                    
-                    # Store in chat history
-                    if 'chat_history' not in st.session_state:
-                        st.session_state.chat_history = []
-                    
+                    # Add to chat history
                     st.session_state.chat_history.append({
-                        'question': st.session_state.current_query,
+                        'question': current_query,
                         'answer': response['answer'],
-                        'time': processing_time,
+                        'time': response['time'],
                         'context': response['context']
                     })
                     
-                    # Reset the send flag
-                    st.session_state.should_send = False
+                    # Clear current query
                     st.session_state.current_query = ''
                     st.rerun()
-                
-                except Exception as e:
-                    st.error(f"Error processing query: {str(e)}")
         
-        # Display chat history (most recent first)
-        if 'chat_history' in st.session_state and st.session_state.chat_history:
-            chat_container = st.container()
-            with chat_container:
-                for chat in reversed(st.session_state.chat_history):
-                    st.markdown("""
-                        <div style="background-color: var(--bg-tertiary); padding: 1rem; margin: 0.5rem 0; border-radius: 8px; border: 1px solid var(--border);">
-                            <div style="color: var(--accent); margin-bottom: 0.5rem;">Query: {}</div>
-                            <div style="color: var(--text-primary);"><strong>Response:</strong> <br>{}</div>
-                            <div style="color: var(--text-secondary); font-size: 0.8rem; text-align: right; margin-top: 0.5rem;">
-                                Response time: {:.2f}s
-                            </div>
-                        </div>
-                    """.format(
-                        chat['question'],
-                        chat['answer'].replace('\n', '<br>'),
-                        chat['time']
-                    ), unsafe_allow_html=True)
+        # Display chat history
+        st.markdown("### 💬 Protocol Responses")
+        chat_container = st.container()
+        with chat_container:
+            for i, chat in enumerate(reversed(st.session_state.chat_history[-5:])):  # Show last 5
+                st.markdown(f'<div class="message-user"><strong>Query:</strong> {chat["question"]}</div>', 
+                           unsafe_allow_html=True)
+                st.markdown(f'<div class="message-bot"><strong>Protocol Response:</strong><br>{chat["answer"].replace(chr(10), "<br>")}</div>', 
+                           unsafe_allow_html=True)
+                st.markdown(f"<small>⏱️ Response time: {chat['time']:.2f}s</small>", unsafe_allow_html=True)
+                st.markdown("---")
     
-    # Right Column - Reference Materials
-    with right_col:
-        st.markdown("### Reference Materials")
-        if 'chat_history' in st.session_state and st.session_state.chat_history:
+    # Right Column - References
+    with col3:
+        st.markdown("### 📚 References")
+        if st.session_state.chat_history:
             latest = st.session_state.chat_history[-1]
-            for idx, doc in enumerate(latest['context'], 1):
-                with st.expander(f"Reference {idx}"):
-                    st.markdown(doc.page_content)
+            if latest.get('context'):
+                for idx, doc in enumerate(latest['context'][:3], 1):  # Show top 3
+                    with st.expander(f"📄 Reference {idx}", expanded=False):
+                        st.markdown(doc.page_content[:300] + "..." if len(doc.page_content) > 300 else doc.page_content)
+        
+        # Clear chat button
+        if st.button("🗑️ Clear Chat History", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
 if __name__ == "__main__":
     main()
